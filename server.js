@@ -25,6 +25,7 @@ db.init().then(() => {
   app.use('/api/tutor', require('./routes/tutor'));
   app.use('/api/reviews', reviewsRouter);
   app.use('/api/admin', require('./routes/admin'));
+  app.use('/api/setup', require('./routes/setup'));
 
   app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
   app.listen(PORT, () => console.log(`🐉 MT2Market on :${PORT}`));
