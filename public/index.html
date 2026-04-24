@@ -3,51 +3,47 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Metin2Market — Marketplace dla prywatnych serwerów</title>
-  <link rel="stylesheet" href="/css/style.css">
+  <title>Projekt Hard — Marketplace MT2</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-  <!-- Particles background -->
   <div id="particles"></div>
 
-  <!-- HEADER -->
   <header id="header">
     <div class="header-inner">
-      <a href="/" class="logo" onclick="navigate('home')">
+      <a href="#" class="logo" onclick="navigate('home');return false;">
         <span class="logo-dragon">🐉</span>
-        <span class="logo-text">Metin2<span class="logo-accent">Market</span></span>
+        <span class="logo-text">Projekt <span class="logo-accent">Hard</span></span>
+        <span class="logo-sub">MARKETPLACE</span>
       </a>
-      <nav class="nav-links">
-        <a href="#" onclick="navigate('offers')">Ogłoszenia</a>
-        <a href="#" onclick="navigate('servers')">Serwery</a>
-        <a href="#" onclick="navigate('add-offer')" class="nav-add">+ Dodaj ogłoszenie</a>
+      <nav class="nav-links" id="nav-links">
+        <a href="#" onclick="navigate('offers');return false;">Ogłoszenia</a>
+        <a href="#" onclick="navigate('add-offer');return false;" class="nav-cta">+ Wystaw przedmiot</a>
       </nav>
-      <div class="header-actions">
+      <div class="header-right">
         <div id="auth-buttons">
-          <button class="btn btn-ghost" onclick="showModal('login')">Zaloguj</button>
-          <button class="btn btn-gold" onclick="showModal('register')">Rejestracja</button>
+          <button class="btn btn-ghost btn-sm" onclick="showModal('login')">Zaloguj</button>
+          <button class="btn btn-gold btn-sm" onclick="showModal('register')">Rejestracja</button>
         </div>
-        <div id="user-menu" style="display:none">
-          <span class="user-greeting">Witaj, <strong id="username-display"></strong></span>
-          <button class="btn btn-ghost" onclick="logout()">Wyloguj</button>
+        <div id="user-nav" style="display:none">
+          <a href="#" class="msg-btn" onclick="navigate('messages');return false;" id="msg-icon" title="Wiadomości">
+            💬 <span id="msg-badge" class="badge" style="display:none"></span>
+          </a>
+          <a href="#" class="user-chip" onclick="navigate('account');return false;">
+            <span class="user-avatar-sm">🧙</span>
+            <span id="nav-username"></span>
+          </a>
         </div>
       </div>
     </div>
   </header>
 
-  <!-- MAIN CONTENT -->
-  <main id="app">
-    <!-- Pages injected by JS -->
-  </main>
-
-  <!-- MODALS -->
+  <main id="app"></main>
   <div id="modal-overlay" onclick="closeModal()"></div>
-  <div id="modal-container"></div>
-
-  <!-- TOAST -->
-  <div id="toast"></div>
+  <div id="modal-box"></div>
+  <div id="toast-container"></div>
 
   <script src="/js/app.js"></script>
 </body>

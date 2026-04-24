@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: metin2market
+    name: projekt-hard-market
     env: node
     plan: free
     buildCommand: npm install
@@ -12,4 +12,15 @@ services:
         generateValue: true
       - key: DB_PATH
         value: /opt/render/project/src/data.db
-    healthCheckPath: /
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: APP_URL
+        sync: false
