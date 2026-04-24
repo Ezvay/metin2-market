@@ -1,9 +1,4 @@
 const router = require('express').Router();
-const { getDb } = require('../db');
-
-router.get('/', (req, res) => {
-  const db = getDb();
-  res.json(db.prepare('SELECT * FROM servers ORDER BY name').all());
-});
-
+const db = require('../db');
+router.get('/', (req, res) => res.json(db.all('SELECT * FROM servers ORDER BY name')));
 module.exports = router;

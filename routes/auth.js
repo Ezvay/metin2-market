@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { getDb } = require('../db');
+const db = require('../db');
 
 const SECRET = process.env.JWT_SECRET || 'metin2market_secret_change_in_prod';
 
@@ -10,23 +10,20 @@ router.post('/register', (req, res) => {
   if (!username || !email || !password)
     return res.status(400).json({ error: 'Wypełnij wszystkie pola' });
 
-  const db = getDb();
   const hash = bcrypt.hashSync(password, 10);
   try {
-    const stmt = db.prepare('INSERT INTO users (username, email, password) VALUES (?, ?, ?)');
-    const result = stmt.run(username, email, hash);
+    const result = db.runInsert('INSERT INTO users (username,email,password) VALUES (?,?,?)', [username, email, hash]);
     const token = jwt.sign({ id: result.lastInsertRowid, username }, SECRET, { expiresIn: '7d' });
     res.json({ token, username, id: result.lastInsertRowid });
   } catch (e) {
-    if (e.message.includes('UNIQUE')) return res.status(409).json({ error: 'Login lub email już istnieje' });
-    res.status(500).json({ error: 'Błąd serwera' });
+    if (String(e).includes('UNIQUE')) return res.status(409).json({ error: 'Login lub email już istnieje' });
+    res.status(500).json({ error: 'Błąd serwera: ' + e.message });
   }
 });
 
 router.post('/login', (req, res) => {
   const { email, password } = req.body;
-  const db = getDb();
-  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+  const user = db.get('SELECT * FROM users WHERE email = ?', [email]);
   if (!user || !bcrypt.compareSync(password, user.password))
     return res.status(401).json({ error: 'Nieprawidłowe dane logowania' });
 
@@ -35,8 +32,7 @@ router.post('/login', (req, res) => {
 });
 
 router.get('/me', require('../middleware/auth'), (req, res) => {
-  const db = getDb();
-  const user = db.prepare('SELECT id, username, email, avatar, total_sales, rating, created_at FROM users WHERE id = ?').get(req.user.id);
+  const user = db.get('SELECT id,username,email,avatar,total_sales,rating,created_at FROM users WHERE id=?', [req.user.id]);
   res.json(user);
 });
 
