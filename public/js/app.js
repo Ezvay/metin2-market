@@ -384,20 +384,24 @@ function offerCards(list) {
   if (!list?.length) return '<div class="empty"><span class="empty-icon">⚔️</span><h3>Brak ogłoszeń</h3></div>';
   return `<div class="offers-grid">${list.map(o => {
     const imgs = safeJson(o.images,[]);
-    const isA = o.type==='auction';
-    const price = isA ? (o.auction_current||o.auction_start) : o.price;
+    const isBoth = o.type==='both';
+    const isA = o.type==='auction'||isBoth;
+    const price = (isA&&!isBoth) ? (o.auction_current||o.auction_start) : o.price;
     const endTs = o.auction_end ? o.auction_end*1000 : null;
+    const typeBadge = isBoth ? '⚡ LICYTACJA + KUP TERAZ' : (o.type==='auction' ? '⏰ LICYTACJA' : '🛒 KUP TERAZ');
+    const typeCls = isBoth ? 'badge-both' : (o.type==='auction' ? 'badge-auction' : 'badge-buy');
     return `<div class="offer-card" onclick="navigate('offer',{id:${o.id}})">
       <div class="offer-img">
         ${imgs[0]?`<img src="${imgs[0]}" alt="${esc(o.title)}" loading="lazy">`:catEmoji(o.category_slug)}
-        <span class="offer-type-badge ${isA?'badge-auction':'badge-buy'}">${isA?'⏰ LICYTACJA':'🛒 KUP TERAZ'}</span>
+        <span class="offer-type-badge ${typeCls}">${typeBadge}</span>
       </div>
       <div class="offer-body">
         <div class="offer-cat">${o.server_name?esc(o.server_name)+' · ':''}${o.category_name||''}</div>
         <div class="offer-title">${esc(o.title)}</div>
         <div class="offer-footer">
           <div>
-            <div class="offer-price">${fmtPrice(price)} <small>PLN</small></div>
+            ${isBoth?`<div class="offer-price">${fmtPrice(o.auction_current||o.auction_start)} <small>PLN (licyt.)</small></div><div style="font-size:12px;color:var(--green2)">🛒 Kup teraz: ${fmtPrice(o.price)} PLN</div>`:
+              `<div class="offer-price">${fmtPrice(price)} <small>PLN</small></div>`}
             ${isA?`<div class="auction-end">${o.bid_count||0} ofert${endTs?' · '+timeLeft(endTs):''}</div>`:''}
           </div>
           <div class="offer-meta2">🧙 ${esc(o.seller_name)}</div>
@@ -412,8 +416,10 @@ async function renderOffer(id) {
   try {
     const o = await api('GET', `/offers/${id}`);
     const imgs = safeJson(o.images,[]);
-    const isA = o.type==='auction';
-    const price = isA?(o.auction_current||o.auction_start):o.price;
+    const isBoth = o.type==='both';
+    const isA = o.type==='auction'||isBoth;
+    const auctionPrice = o.auction_current||o.auction_start;
+    const price = isA&&!isBoth ? auctionPrice : o.price;
     const endTs = o.auction_end?o.auction_end*1000:null;
     const stars = starStr(o.seller_rating);
     document.getElementById('app').innerHTML = `
@@ -436,14 +442,22 @@ async function renderOffer(id) {
           <div>
             <div class="sidebar-box">
               <div class="sidebar-box-title">${isA?'Aktualna oferta':'Cena'}</div>
-              <div class="price-big">${fmtPrice(price)} PLN</div>
+              ${isBoth?`
+                <div style="display:flex;gap:12px;margin-bottom:12px;align-items:flex-end;flex-wrap:wrap">
+                  <div><div style="font-size:11px;color:var(--text3);font-family:var(--font-d);letter-spacing:1px;margin-bottom:2px">LICYTACJA</div><div class="price-big" style="margin:0">${fmtPrice(auctionPrice)} PLN</div></div>
+                  <div style="color:var(--text3);font-size:20px;margin-bottom:6px">lub</div>
+                  <div><div style="font-size:11px;color:var(--text3);font-family:var(--font-d);letter-spacing:1px;margin-bottom:2px">KUP TERAZ</div><div style="font-family:var(--font-d);font-size:26px;font-weight:900;color:var(--green2)">${fmtPrice(o.price)} PLN</div></div>
+                </div>`:
+                `<div class="price-big">${fmtPrice(price)} PLN</div>`}
               ${isA&&endTs?`<div class="auction-timer" id="atimer">${timeLeft(endTs)}</div>`:''}
-              ${isA?`<div class="price-sub">Min. następna oferta: <strong>${fmtPrice((price||0)+0.01)} PLN</strong></div>
-                ${me&&me.id!==o.seller_id?`<div class="bid-row"><input type="number" id="bid-amt" placeholder="Twoja oferta PLN" step="0.01" min="${(price||0)+0.01}"><button class="btn btn-gold" onclick="placeBid(${o.id})">Licytuj</button></div>`
+              ${isA?`<div class="price-sub">Min. następna oferta: <strong>${fmtPrice((auctionPrice||0)+0.01)} PLN</strong></div>
+                ${me&&me.id!==o.seller_id?`<div class="bid-row"><input type="number" id="bid-amt" placeholder="Twoja oferta PLN" step="0.01" min="${(auctionPrice||0)+0.01}"><button class="btn btn-gold" onclick="placeBid(${o.id})">Licytuj</button></div>`
                 :(!me?`<button class="btn btn-ghost btn-full" onclick="showModal('login')">Zaloguj się by licytować</button>`:'')}
-              `:`${me&&me.id!==o.seller_id?`<button class="btn btn-gold btn-full btn-lg" onclick="buyNow(${o.id},${o.seller_id})">🛒 KUP TERAZ</button>`
+              `:''}
+              ${(o.type==='buy_now'||isBoth)?`${me&&me.id!==o.seller_id?`<button class="btn btn-gold btn-full btn-lg" style="margin-top:8px" onclick="buyNow(${o.id},${o.seller_id})">🛒 KUP TERAZ — ${fmtPrice(o.price)} PLN</button>`
                 :(!me?`<button class="btn btn-gold btn-full btn-lg" onclick="showModal('login')">🛒 Zaloguj się</button>`:
-                `<div style="color:var(--text3);font-size:13px;text-align:center;padding:8px">To Twoje ogłoszenie</div>`)}`}
+                `<div style="color:var(--text3);font-size:13px;text-align:center;padding:8px">To Twoje ogłoszenie</div>`)}`:
+              (!isA?`<div style="color:var(--text3);font-size:13px;text-align:center;padding:8px">To Twoje ogłoszenie</div>`:'')}
             </div>
             <div class="sidebar-box">
               <div class="sidebar-box-title">Sprzedawca</div>
@@ -521,6 +535,9 @@ async function renderAddOffer(prefillServer) {
           <div class="type-opt" id="opt-auction" onclick="selectType('auction')">
             <span class="type-opt-icon">⏰</span><div class="type-opt-name">Licytacja</div><div class="type-opt-desc">Cena rośnie</div>
           </div>
+          <div class="type-opt" id="opt-both" onclick="selectType('both')">
+            <span class="type-opt-icon">⚡</span><div class="type-opt-name">Licytacja + Kup teraz</div><div class="type-opt-desc">Oba tryby</div>
+          </div>
         </div>
         <input type="hidden" id="f-type" value="buy_now">
       </div>
@@ -531,12 +548,12 @@ async function renderAddOffer(prefillServer) {
       </div>
 
       <div id="buynow-field" class="form-group">
-        <label class="form-label">Cena (PLN) *</label>
+        <label class="form-label">Cena "Kup teraz" (PLN) *</label>
         <input type="number" id="f-price" placeholder="49.99" min="0.01" step="0.01">
       </div>
       <div id="auction-fields" style="display:none">
         <div class="form-row">
-          <div class="form-group"><label class="form-label">Cena startowa (PLN) *</label><input type="number" id="f-start" placeholder="5.00" min="0.01" step="0.01"></div>
+          <div class="form-group"><label class="form-label">Cena startowa licytacji (PLN) *</label><input type="number" id="f-start" placeholder="5.00" min="0.01" step="0.01"></div>
           <div class="form-group"><label class="form-label">Koniec aukcji *</label><input type="datetime-local" id="f-end"></div>
         </div>
       </div>
@@ -579,7 +596,7 @@ async function loadCategoriesForServer(serverId) {
   } catch {}
 }
 
-function selectType(type){document.getElementById('f-type').value=type;document.querySelectorAll('.type-opt').forEach(e=>e.classList.remove('selected'));document.getElementById('opt-'+type)?.classList.add('selected');document.getElementById('buynow-field').style.display=type==='buy_now'?'block':'none';document.getElementById('auction-fields').style.display=type==='auction'?'block':'none';}
+function selectType(type){document.getElementById('f-type').value=type;document.querySelectorAll('.type-opt').forEach(e=>e.classList.remove('selected'));document.getElementById('opt-'+type)?.classList.add('selected');document.getElementById('buynow-field').style.display=(type==='buy_now'||type==='both')?'block':'none';document.getElementById('auction-fields').style.display=(type==='auction'||type==='both')?'block':'none';const lbl=document.querySelector('#buynow-field .form-label');if(lbl)lbl.textContent=type==='both'?'Cena "Kup teraz" (PLN) *':'Cena (PLN) *';}
 
 function previewImages(input){const prev=document.getElementById('img-preview');if(!prev)return;prev.innerHTML='';Array.from(input.files).slice(0,5).forEach(f=>{const r=new FileReader();r.onload=e=>{const d=document.createElement('div');d.className='img-prev-item';d.innerHTML=`<img src="${e.target.result}">`;prev.appendChild(d);};r.readAsDataURL(f);});}
 
@@ -595,8 +612,20 @@ async function submitOffer(){
   if(!cat)return toast('Wybierz kategorię','error');
   const fd=new FormData();
   fd.append('title',title);fd.append('description',desc||'');fd.append('category_id',cat);fd.append('server_id',serverId);fd.append('type',type);
-  if(type==='buy_now'){const price=parseFloat(document.getElementById('f-price')?.value);if(!price||price<=0)return toast('Podaj cenę','error');fd.append('price',price);}
-  else{const start=parseFloat(document.getElementById('f-start')?.value);const end=document.getElementById('f-end')?.value;if(!start||start<=0)return toast('Podaj cenę startową','error');if(!end)return toast('Podaj datę zakończenia','error');fd.append('auction_start',start);fd.append('auction_end',end);}
+  // Handle all types: buy_now, auction, both
+  if(type==='buy_now'||type==='both'){
+    const price=parseFloat(document.getElementById('f-price')?.value);
+    if(!price||price<=0)return toast('Podaj cenę Kup Teraz','error');
+    fd.append('price',price);
+  }
+  if(type==='auction'||type==='both'){
+    const start=parseFloat(document.getElementById('f-start')?.value);
+    const end=document.getElementById('f-end')?.value;
+    if(!start||start<=0)return toast('Podaj cenę startową licytacji','error');
+    if(!end)return toast('Podaj datę zakończenia aukcji','error');
+    fd.append('auction_start',start);
+    fd.append('auction_end',end);
+  }
   if(files)Array.from(files).slice(0,5).forEach(f=>fd.append('images',f));
   try{const btn=document.querySelector('.add-page .btn-gold');if(btn){btn.disabled=true;btn.textContent='Dodawanie...';}
     const r=await api('POST','/offers',fd,true);toast('Ogłoszenie dodane!','success');navigate('offer',{id:r.id});}

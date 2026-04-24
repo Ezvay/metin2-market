@@ -91,6 +91,7 @@ router.post('/', auth, upload.array('images', 5), async (req, res) => {
     if (!server_id) return res.status(400).json({ error: 'Wybierz serwer' });
     if (type === 'buy_now' && !price) return res.status(400).json({ error: 'Podaj cenę' });
     if (type === 'auction' && (!auction_start || !auction_end)) return res.status(400).json({ error: 'Podaj cenę startową i czas zakończenia' });
+    if (type === 'both' && (!auction_start || !auction_end || !price)) return res.status(400).json({ error: 'Podaj cenę startową, czas zakończenia i cenę Kup Teraz' });
 
     // Get server slug for cloudinary folder
     const srv = db.get('SELECT slug FROM servers WHERE id=?', [server_id]);
@@ -105,9 +106,9 @@ router.post('/', auth, upload.array('images', 5), async (req, res) => {
       VALUES (?,?,?,?,?,?,?,?,?,?,?)
     `, [title, description||'', category_id||null, server_id, req.user.id, JSON.stringify(imageUrls),
         type||'buy_now',
-        type==='buy_now' ? Number(price) : null,
-        type==='auction' ? Number(auction_start) : null,
-        type==='auction' ? Number(auction_start) : null,
+        (type==='buy_now' || type==='both') ? Number(price) : null,
+        (type==='auction' || type==='both') ? Number(auction_start) : null,
+        (type==='auction' || type==='both') ? Number(auction_start) : null,
         auctionEndTs]);
     res.json({ id: result.lastInsertRowid, message: 'Ogłoszenie dodane!' });
   } catch (e) { res.status(500).json({ error: e.message }); }
