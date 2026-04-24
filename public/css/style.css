@@ -69,11 +69,12 @@ select option { background: var(--bg2); }
   max-width:1280px; margin:0 auto; padding:0 20px;
   height:62px; display:flex; align-items:center; gap:20px;
 }
-.logo { display:flex; align-items:center; gap:8px; }
-.logo-dragon { font-size:26px; filter:drop-shadow(0 0 10px rgba(200,148,14,.7)); }
-.logo-text { font-family:var(--font-d); font-size:20px; font-weight:900; color:var(--white); letter-spacing:1px; }
+.logo { display:flex; align-items:center; gap:10px; }
+.logo-img { height:44px; width:44px; object-fit:contain; filter:drop-shadow(0 0 8px rgba(200,148,14,.5)); }
+.logo-texts { display:flex; flex-direction:column; justify-content:center; }
+.logo-text { font-family:var(--font-d); font-size:20px; font-weight:900; color:var(--white); letter-spacing:1px; line-height:1.1; }
 .logo-accent { color:var(--gold2); }
-.logo-sub { font-family:var(--font-d); font-size:9px; color:var(--text3); letter-spacing:3px; margin-left:2px; align-self:flex-end; margin-bottom:3px; }
+.logo-sub { font-family:var(--font-d); font-size:9px; color:var(--text3); letter-spacing:3px; }
 .nav-links { display:flex; align-items:center; gap:4px; margin-left:12px; }
 .nav-links a { color:var(--text2); padding:6px 14px; border-radius:var(--r); font-family:var(--font-d); font-size:12px; letter-spacing:.5px; transition:all .2s; }
 .nav-links a:hover { color:var(--gold2); background:rgba(200,148,14,.07); }
@@ -354,7 +355,8 @@ select option { background: var(--bg2); }
 .server-card { background:var(--bg3); border:1px solid var(--border); border-radius:var(--r); padding:28px 24px; cursor:pointer; transition:all .25s; position:relative; overflow:hidden; }
 .server-card::before { content:''; position:absolute; inset:0; background:linear-gradient(135deg,rgba(200,148,14,.04),transparent); pointer-events:none; }
 .server-card:hover { border-color:var(--gold); transform:translateY(-3px); box-shadow:0 12px 32px rgba(0,0,0,.5),0 0 20px rgba(200,148,14,.12); }
-.server-card-icon { font-size:40px; margin-bottom:14px; display:block; }
+.server-card-icon { font-size:40px; margin-bottom:14px; display:flex; align-items:center; justify-content:center; min-height:64px; }
+.server-card-icon img { max-height:70px; max-width:100%; object-fit:contain; filter:drop-shadow(0 2px 8px rgba(0,0,0,.5)); }
 .server-card-name { font-family:var(--font-d); font-size:20px; color:var(--white); margin-bottom:4px; }
 .server-card-rates { font-size:13px; color:var(--gold2); font-family:var(--font-d); margin-bottom:8px; }
 .server-card-desc { font-size:14px; color:var(--text2); line-height:1.5; margin-bottom:16px; }

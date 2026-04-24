@@ -142,7 +142,7 @@ function renderHome() {
       <div class="server-grid" id="server-grid">
         ${allServers.map(s => `
           <div class="server-card" onclick="navigate('server',{id:'${s.slug}'})">
-            <span class="server-card-icon">⚔️</span>
+            <span class="server-card-icon">${s.slug==='projekt-hard'?`<img src="/images/projekt-hard.png" style="width:80px;height:60px;object-fit:contain;">`:"⚔️"}</span>
             <div class="server-card-name">${esc(s.name)}</div>
             ${s.rates ? `<div class="server-card-rates">${esc(s.rates)}</div>` : ''}
             ${s.description ? `<div class="server-card-desc">${esc(s.description)}</div>` : ''}
@@ -196,7 +196,7 @@ function renderServers() {
       <div class="server-grid">
         ${allServers.map(s => `
           <div class="server-card" onclick="navigate('server',{id:'${s.slug}'})">
-            <span class="server-card-icon">⚔️</span>
+            <span class="server-card-icon">${s.slug==='projekt-hard'?`<img src="/images/projekt-hard.png" style="width:80px;height:60px;object-fit:contain;">`:"⚔️"}</span>
             <div class="server-card-name">${esc(s.name)}</div>
             ${s.rates ? `<div class="server-card-rates">${esc(s.rates)}</div>` : ''}
             ${s.description ? `<div class="server-card-desc">${esc(s.description)}</div>` : ''}
@@ -213,7 +213,7 @@ async function renderServerPage(slug) {
   document.getElementById('app').innerHTML = `
     <div style="background:linear-gradient(180deg,#0d0a06,#181208);padding:36px 20px 0;text-align:center;border-bottom:1px solid var(--border)">
       <div style="max-width:1280px;margin:0 auto">
-        <div style="font-size:48px;margin-bottom:10px">⚔️</div>
+        <div style="margin-bottom:10px">${srv.slug==='projekt-hard'?`<img src="/images/projekt-hard.png" style="height:80px;object-fit:contain;">`:`<span style="font-size:48px">⚔️</span>`}</div>
         <h1 style="font-family:var(--font-d);font-size:32px;color:var(--white);margin-bottom:6px">${esc(srv.name)}</h1>
         ${srv.rates ? `<div style="color:var(--gold2);font-family:var(--font-d);font-size:14px;margin-bottom:8px">${esc(srv.rates)}</div>` : ''}
         ${srv.description ? `<p style="color:var(--text2);max-width:500px;margin:0 auto 16px">${esc(srv.description)}</p>` : ''}
