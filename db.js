@@ -9,9 +9,8 @@ let saveTimer = null;
 function scheduleWrite() {
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
-    try {
-      fs.writeFileSync(DB_PATH, Buffer.from(db.export()));
-    } catch (e) { console.error('DB write error:', e.message); }
+    try { fs.writeFileSync(DB_PATH, Buffer.from(db.export())); }
+    catch (e) { console.error('DB write error:', e.message); }
   }, 500);
 }
 
@@ -44,13 +43,17 @@ async function init() {
     ? new SQL.Database(fs.readFileSync(DB_PATH))
     : new SQL.Database();
 
+  // USERS — role: 'user' | 'tutor' | 'admin'
   db.run(`CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE NOT NULL,
     email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
     avatar TEXT DEFAULT NULL,
+    role TEXT DEFAULT 'user',
     is_verified INTEGER DEFAULT 0,
+    is_banned INTEGER DEFAULT 0,
+    ban_reason TEXT DEFAULT NULL,
     verify_token TEXT DEFAULT NULL,
     reset_token TEXT DEFAULT NULL,
     reset_token_expires INTEGER DEFAULT NULL,
@@ -62,18 +65,36 @@ async function init() {
     created_at INTEGER DEFAULT (strftime('%s','now'))
   )`);
 
-  db.run(`CREATE TABLE IF NOT EXISTS categories (
+  // SERVERS
+  db.run(`CREATE TABLE IF NOT EXISTS servers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     slug TEXT UNIQUE NOT NULL,
-    icon TEXT
+    description TEXT,
+    rates TEXT,
+    logo TEXT,
+    website TEXT,
+    is_active INTEGER DEFAULT 1,
+    created_at INTEGER DEFAULT (strftime('%s','now'))
   )`);
 
+  // CATEGORIES — powiązane z serwerem
+  db.run(`CREATE TABLE IF NOT EXISTS categories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    server_id INTEGER DEFAULT NULL,
+    name TEXT NOT NULL,
+    slug TEXT NOT NULL,
+    icon TEXT,
+    UNIQUE(server_id, slug)
+  )`);
+
+  // OFFERS
   db.run(`CREATE TABLE IF NOT EXISTS offers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
     description TEXT,
     category_id INTEGER,
+    server_id INTEGER,
     seller_id INTEGER NOT NULL,
     images TEXT DEFAULT '[]',
     type TEXT DEFAULT 'buy_now',
@@ -84,10 +105,10 @@ async function init() {
     auction_winner_id INTEGER DEFAULT NULL,
     status TEXT DEFAULT 'active',
     views INTEGER DEFAULT 0,
-    tutor_available INTEGER DEFAULT 1,
     created_at INTEGER DEFAULT (strftime('%s','now')),
     FOREIGN KEY (seller_id) REFERENCES users(id),
-    FOREIGN KEY (category_id) REFERENCES categories(id)
+    FOREIGN KEY (category_id) REFERENCES categories(id),
+    FOREIGN KEY (server_id) REFERENCES servers(id)
   )`);
 
   db.run(`CREATE TABLE IF NOT EXISTS bids (
@@ -117,9 +138,11 @@ async function init() {
     offer_id INTEGER NOT NULL,
     buyer_id INTEGER NOT NULL,
     seller_id INTEGER NOT NULL,
+    tutor_id INTEGER DEFAULT NULL,
     status TEXT DEFAULT 'pending',
     paid INTEGER DEFAULT 0,
     payment_method TEXT DEFAULT NULL,
+    notes TEXT DEFAULT NULL,
     created_at INTEGER DEFAULT (strftime('%s','now')),
     FOREIGN KEY (offer_id) REFERENCES offers(id),
     FOREIGN KEY (buyer_id) REFERENCES users(id),
@@ -138,9 +161,27 @@ async function init() {
     FOREIGN KEY (reviewed_id) REFERENCES users(id)
   )`);
 
-  // Seed categories (tylko Projekt Hard kategorie)
+  db.run(`CREATE TABLE IF NOT EXISTS ban_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    admin_id INTEGER NOT NULL,
+    action TEXT NOT NULL,
+    reason TEXT,
+    created_at INTEGER DEFAULT (strftime('%s','now'))
+  )`);
+
+  // ---- SEED SERVERS ----
+  const srvCount = get('SELECT COUNT(*) as c FROM servers');
+  if (!srvCount || srvCount.c == 0) {
+    db.run(`INSERT OR IGNORE INTO servers (name, slug, description, rates, is_active)
+      VALUES ('Projekt Hard', 'projekt-hard', 'Oficjalny serwer Projekt Hard', 'x100', 1)`);
+  }
+
+  // ---- SEED CATEGORIES dla Projekt Hard ----
   const catCount = get('SELECT COUNT(*) as c FROM categories');
   if (!catCount || catCount.c == 0) {
+    const srv = get("SELECT id FROM servers WHERE slug='projekt-hard'");
+    const sid = srv ? srv.id : 1;
     [
       ['Postać', 'postac', '🧙'],
       ['Broń', 'bron', '⚔️'],
@@ -151,7 +192,9 @@ async function init() {
       ['Kolczyki', 'kolczyki', '💎'],
       ['Bransoletka', 'bransoletka', '📿'],
       ['Naszyjnik', 'naszyjnik', '🔮'],
-    ].forEach(([n, s, i]) => db.run('INSERT OR IGNORE INTO categories (name,slug,icon) VALUES (?,?,?)', [n, s, i]));
+    ].forEach(([n, s, i]) =>
+      db.run('INSERT OR IGNORE INTO categories (server_id,name,slug,icon) VALUES (?,?,?,?)', [sid, n, s, i])
+    );
   }
 
   scheduleWrite();

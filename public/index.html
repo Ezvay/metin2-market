@@ -3,23 +3,23 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Projekt Hard — Marketplace MT2</title>
+  <title>MT2Market — Marketplace Prywatnych Serwerów Metin2</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
   <div id="particles"></div>
-
   <header id="header">
     <div class="header-inner">
       <a href="#" class="logo" onclick="navigate('home');return false;">
         <span class="logo-dragon">🐉</span>
-        <span class="logo-text">Projekt <span class="logo-accent">Hard</span></span>
-        <span class="logo-sub">MARKETPLACE</span>
+        <span class="logo-text">MT2<span class="logo-accent">Market</span></span>
+        <span class="logo-sub">METIN2 MARKETPLACE</span>
       </a>
       <nav class="nav-links" id="nav-links">
-        <a href="#" onclick="navigate('offers');return false;">Ogłoszenia</a>
+        <a href="#" onclick="navigate('servers');return false;">Serwery</a>
+        <a href="#" onclick="navigate('offers');return false;">Wszystkie ogłoszenia</a>
         <a href="#" onclick="navigate('add-offer');return false;" class="nav-cta">+ Wystaw przedmiot</a>
       </nav>
       <div class="header-right">
@@ -28,11 +28,11 @@
           <button class="btn btn-gold btn-sm" onclick="showModal('register')">Rejestracja</button>
         </div>
         <div id="user-nav" style="display:none">
-          <a href="#" class="msg-btn" onclick="navigate('messages');return false;" id="msg-icon" title="Wiadomości">
-            💬 <span id="msg-badge" class="badge" style="display:none"></span>
+          <a href="#" class="msg-btn" onclick="navigate('messages');return false;" title="Wiadomości">
+            💬<span id="msg-badge" class="badge" style="display:none"></span>
           </a>
           <a href="#" class="user-chip" onclick="navigate('account');return false;">
-            <span class="user-avatar-sm">🧙</span>
+            <span id="nav-role-icon">🧙</span>
             <span id="nav-username"></span>
           </a>
         </div>
@@ -44,7 +44,6 @@
   <div id="modal-overlay" onclick="closeModal()"></div>
   <div id="modal-box"></div>
   <div id="toast-container"></div>
-
   <script src="/js/app.js"></script>
 </body>
 </html>
