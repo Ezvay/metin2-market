@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: projekt-hard-market
+    name: metin2market
     env: node
     plan: free
     buildCommand: npm install
@@ -23,4 +23,16 @@ services:
       - key: CLOUDINARY_API_SECRET
         sync: false
       - key: APP_URL
+        sync: false
+      - key: SETUP_SECRET
+        sync: false
+      - key: MYSQL_HOST
+        sync: false
+      - key: MYSQL_PORT
+        sync: false
+      - key: MYSQL_USER
+        sync: false
+      - key: MYSQL_PASSWORD
+        sync: false
+      - key: MYSQL_DATABASE
         sync: false

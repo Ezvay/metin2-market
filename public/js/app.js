@@ -66,8 +66,13 @@ function updateHeaderUI() {
     authBtns.style.display = 'none';
     userNav.style.display = 'flex';
     document.getElementById('nav-username').textContent = me.username;
-    const roleIcon = document.getElementById('nav-role-icon');
-    if (roleIcon) roleIcon.textContent = me.role === 'admin' ? '👑' : me.role === 'tutor' ? '🛡️' : '🧙';
+    const roleBadgeEl = document.getElementById('nav-role-badge');
+    if (roleBadgeEl) roleBadgeEl.innerHTML = me.role !== 'user' ? `<span class="role-badge role-badge-${me.role}" style="margin-left:4px">${me.role==='admin'?'👑 Admin':'🛡️ TuT'}</span>` : '';
+    const roleIconEl = document.getElementById('nav-role-icon');
+    if (roleIconEl) {
+      if (me.avatar) roleIconEl.innerHTML = `<img src="${me.avatar}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:1px solid var(--border2);">`;
+      else roleIconEl.textContent = me.role === 'admin' ? '👑' : me.role === 'tutor' ? '🛡️' : '🧙';
+    }
   } else {
     authBtns.style.display = 'flex';
     userNav.style.display = 'none';
@@ -390,10 +395,11 @@ function offerCards(list) {
     const endTs = o.auction_end ? o.auction_end*1000 : null;
     const typeBadge = isBoth ? '⚡ LICYTACJA + KUP TERAZ' : (o.type==='auction' ? '⏰ LICYTACJA' : '🛒 KUP TERAZ');
     const typeCls = isBoth ? 'badge-both' : (o.type==='auction' ? 'badge-auction' : 'badge-buy');
-    return `<div class="offer-card" onclick="navigate('offer',{id:${o.id}})">
+    const isSold = o.status==='sold';
+    return `<div class="offer-card${isSold?' offer-sold':''}" onclick="navigate('offer',{id:${o.id}})">
       <div class="offer-img">
         ${imgs[0]?`<img src="${imgs[0]}" alt="${esc(o.title)}" loading="lazy">`:catEmoji(o.category_slug)}
-        <span class="offer-type-badge ${typeCls}">${typeBadge}</span>
+        ${isSold?`<div class="sold-overlay">✅ SPRZEDANE</div>`:`<span class="offer-type-badge ${typeCls}">${typeBadge}</span>`}
       </div>
       <div class="offer-body">
         <div class="offer-cat">${o.server_name?esc(o.server_name)+' · ':''}${o.category_name||''}</div>
@@ -404,7 +410,7 @@ function offerCards(list) {
               `<div class="offer-price">${fmtPrice(price)} <small>PLN</small></div>`}
             ${isA?`<div class="auction-end">${o.bid_count||0} ofert${endTs?' · '+timeLeft(endTs):''}</div>`:''}
           </div>
-          <div class="offer-meta2">🧙 ${esc(o.seller_name)}</div>
+          <div class="offer-meta2">${avatarHtml(o.seller_avatar,o.seller_role,18)} ${esc(o.seller_name)}${roleBadge(o.seller_role)}</div>
         </div>
       </div>
     </div>`; }).join('')}</div>`;
@@ -462,15 +468,20 @@ async function renderOffer(id) {
             <div class="sidebar-box">
               <div class="sidebar-box-title">Sprzedawca</div>
               <div class="seller-row">
-                <div class="seller-avatar">${o.seller_role==='tutor'?'🛡️':o.seller_role==='admin'?'👑':'🧙'}</div>
+                <div class="seller-avatar" style="overflow:hidden">${avatarHtml(o.seller_avatar,o.seller_role,44)}</div>
                 <div>
-                  <div class="seller-name"><a href="#" onclick="navigate('profile',{id:${o.seller_id}});return false;">${esc(o.seller_name)}</a></div>
+                  <div class="seller-name"><a href="#" onclick="navigate('profile',{id:${o.seller_id}});return false;">${esc(o.seller_name)}</a>${roleBadge(o.seller_role)}</div>
                   <div class="seller-stats-row"><span class="stars">${stars}</span><span>${o.total_sales||0} sprzedaży</span></div>
                 </div>
               </div>
               ${me&&me.id!==o.seller_id?`<button class="btn btn-ghost btn-full btn-sm" onclick="navigate('messages',{userId:${o.seller_id}})">💬 Wyślij wiadomość</button>`:''}
+            ${me&&me.id===o.seller_id?`<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
+              ${o.status==='active'?`<button class="btn btn-red btn-sm btn-full" onclick="markSold(${o.id})">✅ Oznacz jako sprzedane</button>`:''}
+              ${o.status==='sold'?`<button class="btn btn-ghost btn-sm btn-full" onclick="reactivateOffer(${o.id})">🔄 Reaktywuj ogłoszenie</button>`:''}
+            </div>`:''}
             </div>
-            ${me&&me.id!==o.seller_id?`
+            ${o.status==='sold'?`<div class="sold-banner">✅ SPRZEDANE</div>`:''}
+            ${me&&me.id!==o.seller_id&&o.status!=='sold'?`
             <div class="tutor-box">
               <div class="tutor-title">🛡️ Zamów TuTora — bezpieczna transakcja</div>
               <div class="tutor-desc">TuTor pośredniczy i gwarantuje bezpieczeństwo.<br><strong style="color:var(--gold2)">Koszt: 20 PLN</strong></div>
@@ -498,7 +509,20 @@ let selPay=null;
 function selectPayment(m){selPay=m;document.querySelectorAll('.pay-btn').forEach(b=>b.classList.remove('selected'));document.getElementById('pay-'+m)?.classList.add('selected');}
 async function requestTutor(id){if(!me)return showModal('login');if(!selPay)return toast('Wybierz metodę płatności','error');try{const r=await api('POST','/tutor/request',{offer_id:id,payment_method:selPay});toast(r.message,'success');}catch(e){toast(e.message,'error');}}
 async function placeBid(id){if(!me)return showModal('login');const amt=parseFloat(document.getElementById('bid-amt')?.value);if(!amt||amt<=0)return toast('Podaj kwotę','error');try{const r=await api('POST',`/offers/${id}/bid`,{amount:amt});toast(r.message,'success');renderOffer(id);}catch(e){toast(e.message,'error');}}
-function buyNow(id,sid){if(!me)return showModal('login');navigate('messages',{userId:sid});toast('Napisz do sprzedawcy aby ustalić szczegóły transakcji');}
+function buyNow(id,sid){
+  if(!me)return showModal('login');
+  navigate('messages',{userId:sid});
+  toast('Napisz do sprzedawcy aby ustalić szczegóły transakcji');
+}
+async function markSold(id){
+  if(!confirm('Oznaczyć ogłoszenie jako sprzedane? Zniknie z listy aktywnych.'))return;
+  try{await api('PATCH',`/offers/${id}/sold`);toast('Oznaczono jako sprzedane!','success');renderOffer(id);}
+  catch(e){toast(e.message,'error');}
+}
+async function reactivateOffer(id){
+  try{await api('PATCH',`/offers/${id}/reactivate`);toast('Ogłoszenie reaktywowane!','success');renderOffer(id);}
+  catch(e){toast(e.message,'error');}
+}
 
 // ===== ADD OFFER =====
 async function renderAddOffer(prefillServer) {
@@ -687,14 +711,46 @@ async function loadAccountTab(tab){
       </div>`;}catch{el.innerHTML='<div class="empty">Błąd</div>';}
   } else if(tab==='settings'){
     try{const u=await api('GET','/auth/me');
-      el.innerHTML=`<div class="account-panel"><div class="panel-title">⚙️ Ustawienia</div>
-        <div class="form-group"><label class="form-label">Bio</label><textarea id="s-bio" rows="3">${esc(u.bio||'')}</textarea></div>
+      el.innerHTML=`<div class="account-panel"><div class="panel-title">⚙️ Ustawienia profilu</div>
+        <div class="form-group">
+          <label class="form-label">Awatar</label>
+          <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px">
+            <div style="width:80px;height:80px;border-radius:50%;overflow:hidden;border:2px solid var(--border2);background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:36px;flex-shrink:0" id="avatar-preview">
+              ${u.avatar?`<img src="${u.avatar}" style="width:100%;height:100%;object-fit:cover;">`:(u.role==='admin'?'👑':u.role==='tutor'?'🛡️':'🧙')}
+            </div>
+            <div>
+              <input type="file" id="s-avatar" accept="image/*" onchange="previewAvatar(this)" style="margin-bottom:8px">
+              <div style="font-size:12px;color:var(--text3)">Max 2MB · JPG, PNG, GIF</div>
+              <button class="btn btn-gold btn-sm" style="margin-top:8px" onclick="uploadAvatar()">📸 Zapisz awatar</button>
+            </div>
+          </div>
+        </div>
+        <div class="form-group"><label class="form-label">Bio / O mnie</label><textarea id="s-bio" rows="3">${esc(u.bio||'')}</textarea></div>
         <div class="form-group"><label class="form-label">Discord</label><input type="text" id="s-discord" value="${esc(u.discord||'')}"></div>
-        <button class="btn btn-gold" onclick="saveSettings()">💾 Zapisz</button></div>`;}catch{}
+        <button class="btn btn-gold" onclick="saveSettings()">💾 Zapisz zmiany</button>
+      </div>`;}catch{}
   }
 }
 
 async function saveSettings(){const bio=document.getElementById('s-bio')?.value;const discord=document.getElementById('s-discord')?.value;try{await api('PUT','/auth/me',{bio,discord});toast('Zaktualizowano!','success');}catch(e){toast(e.message,'error');}}
+
+function previewAvatar(input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{const prev=document.getElementById('avatar-preview');if(prev)prev.innerHTML=`<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;">`; };
+  reader.readAsDataURL(file);
+}
+
+async function uploadAvatar(){
+  const file=document.getElementById('s-avatar')?.files[0];
+  if(!file)return toast('Wybierz zdjęcie','error');
+  const fd=new FormData();fd.append('avatar',file);
+  try{
+    const r=await api('POST','/auth/avatar',fd,true);
+    me.avatar=r.avatar;localStorage.setItem('ph_me',JSON.stringify(me));
+    toast(r.message,'success');
+  }catch(e){toast(e.message,'error');}
+}
 async function delMyOffer(id){if(!confirm('Usunąć?'))return;try{await api('DELETE',`/offers/${id}`);toast('Usunięto','success');loadAccountTab('offers');}catch(e){toast(e.message,'error');}}
 
 // ===== ADMIN PANEL =====
@@ -933,7 +989,7 @@ async function renderProfile(id){
     document.getElementById('app').innerHTML=`<div class="page">
       <button class="back-btn" onclick="history.back()">← Wróć</button>
       <div class="profile-header">
-        <div class="profile-avatar">${u.role==='admin'?'👑':u.role==='tutor'?'🛡️':'🧙'}</div>
+        <div class="profile-avatar" style="overflow:hidden">${avatarHtml(u.avatar,u.role,72)}</div>
         <div>
           <div class="profile-name">${esc(u.username)} ${u.role!=='user'?`<span class="role-pill role-${u.role}">${u.role}</span>`:''}</div>
           <div class="stars">${starStr(u.rating)} ${fmtRating(u.rating)} (${u.rating_count||0} opinii)</div>
@@ -995,3 +1051,7 @@ function timeAgo(ts){const d=Date.now()-ts;if(d<60000)return'przed chwilą';if(d
 function safeJson(s,d){try{return JSON.parse(s);}catch{return d;}}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function catEmoji(slug){const m={postac:'🧙',bron:'⚔️',zbroja:'🛡️',helm:'⛑️',buty:'👟',tarcza:'🔰',kolczyki:'💎',bransoletka:'📿',naszyjnik:'🔮'};return m[slug]||'📦';}
+
+function roleIcon(role){return role==='admin'?'👑':role==='tutor'?'🛡️':'🧙';}
+function roleBadge(role){if(!role||role==='user')return'';return`<span class="role-badge role-badge-${role}">${role==='admin'?'👑 Admin':'🛡️ TuT'}</span>`;}
+function avatarHtml(avatar,role,size=36){if(avatar)return`<img src="${avatar}" class="user-avatar" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;border:2px solid var(--border2);">`;return`<span style="font-size:${size*0.6}px">${roleIcon(role)}</span>`;}

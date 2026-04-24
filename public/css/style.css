@@ -423,3 +423,17 @@ select option { background: var(--bg2); }
 .server-opt:hover, .server-opt.selected { border-color:var(--gold); background:rgba(200,148,14,.07); }
 .server-opt-name { font-family:var(--font-d); font-size:14px; color:var(--white); }
 .server-opt-rates { font-size:12px; color:var(--gold2); margin-top:2px; }
+
+/* === ROLE BADGES === */
+.role-badge { display:inline-flex; align-items:center; gap:3px; padding:2px 7px; border-radius:3px; font-size:10px; font-family:var(--font-d); letter-spacing:.5px; vertical-align:middle; margin-left:4px; }
+.role-badge-admin { background:rgba(220,60,20,.15); color:#ff9977; border:1px solid rgba(220,60,20,.3); }
+.role-badge-tutor { background:rgba(42,122,58,.15); color:var(--green2); border:1px solid rgba(42,122,58,.3); }
+
+/* === SOLD STATUS === */
+.offer-sold { opacity:.75; }
+.offer-sold .offer-img::after { content:''; position:absolute; inset:0; background:rgba(0,0,0,.35); }
+.sold-overlay { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:rgba(42,122,58,.92); color:#fff; font-family:var(--font-d); font-size:13px; letter-spacing:1px; padding:6px 16px; border-radius:4px; font-weight:700; z-index:2; white-space:nowrap; }
+.sold-banner { background:linear-gradient(135deg,rgba(42,122,58,.2),rgba(42,122,58,.1)); border:1px solid rgba(42,122,58,.4); border-radius:var(--r); padding:14px; text-align:center; font-family:var(--font-d); font-size:18px; color:var(--green2); letter-spacing:2px; margin-bottom:12px; }
+
+/* === OFFER STATUS BADGE === */
+.offer-status-sold { position:absolute; top:8px; left:8px; background:rgba(42,122,58,.9); color:#fff; font-family:var(--font-d); font-size:10px; letter-spacing:1px; padding:3px 9px; border-radius:3px; }

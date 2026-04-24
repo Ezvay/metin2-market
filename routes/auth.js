@@ -17,7 +17,7 @@ router.post('/register', async (req, res) => {
   const hash = bcrypt.hashSync(password, 10);
   const token = makeToken();
   try {
-    db.runInsert('INSERT INTO users (username,email,password,verify_token) VALUES (?,?,?,?)',
+    await db.runInsert('INSERT INTO users (username,email,password,verify_token) VALUES (?,?,?,?)',
       [username.trim(), email.toLowerCase().trim(), hash, token]);
     await sendVerificationEmail(email, username, token);
     res.json({ message: 'Konto utworzone! Sprawdź email aby aktywować konto.' });
@@ -27,17 +27,17 @@ router.post('/register', async (req, res) => {
   }
 });
 
-router.get('/verify', (req, res) => {
+router.get('/verify', async (req, res) => {
   const { token } = req.query;
-  const user = db.get('SELECT * FROM users WHERE verify_token=?', [token]);
+  const user = await db.get('SELECT * FROM users WHERE verify_token=?', [token]);
   if (!user) return res.status(400).json({ error: 'Nieprawidłowy lub wygasły token' });
-  db.run('UPDATE users SET is_verified=1, verify_token=NULL WHERE id=?', [user.id]);
+  await db.run('UPDATE users SET is_verified=1, verify_token=NULL WHERE id=?', [user.id]);
   res.json({ message: 'Konto potwierdzone! Możesz się zalogować.' });
 });
 
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   const { email, password } = req.body;
-  const user = db.get('SELECT * FROM users WHERE email=?', [email?.toLowerCase().trim()]);
+  const user = await db.get('SELECT * FROM users WHERE email=?', [email?.toLowerCase().trim()]);
   if (!user || !bcrypt.compareSync(password, user.password))
     return res.status(401).json({ error: 'Nieprawidłowe dane logowania' });
   if (!user.is_verified) return res.status(403).json({ error: 'Konto nie zostało potwierdzone. Sprawdź email.' });
@@ -47,42 +47,67 @@ router.post('/login', (req, res) => {
 
 router.post('/forgot-password', async (req, res) => {
   const { email } = req.body;
-  const user = db.get('SELECT * FROM users WHERE email=?', [email?.toLowerCase().trim()]);
+  const user = await db.get('SELECT * FROM users WHERE email=?', [email?.toLowerCase().trim()]);
   if (!user) return res.json({ message: 'Jeśli konto istnieje, wysłaliśmy email.' });
   const token = makeToken();
-  db.run('UPDATE users SET reset_token=?, reset_token_expires=? WHERE id=?', [token, Date.now() + 3600000, user.id]);
+  await db.run('UPDATE users SET reset_token=?, reset_token_expires=? WHERE id=?', [token, Date.now() + 3600000, user.id]);
   await sendPasswordResetEmail(user.email, user.username, token);
   res.json({ message: 'Link do resetu hasła wysłany!' });
 });
 
-router.post('/reset-password', (req, res) => {
+router.post('/reset-password', async (req, res) => {
   const { token, password } = req.body;
   if (!password || password.length < 6) return res.status(400).json({ error: 'Hasło min. 6 znaków' });
-  const user = db.get('SELECT * FROM users WHERE reset_token=?', [token]);
+  const user = await db.get('SELECT * FROM users WHERE reset_token=?', [token]);
   if (!user || Date.now() > user.reset_token_expires)
     return res.status(400).json({ error: 'Token wygasł lub jest nieprawidłowy' });
-  db.run('UPDATE users SET password=?, reset_token=NULL, reset_token_expires=NULL WHERE id=?',
+  await db.run('UPDATE users SET password=?, reset_token=NULL, reset_token_expires=NULL WHERE id=?',
     [bcrypt.hashSync(password, 10), user.id]);
   res.json({ message: 'Hasło zmienione!' });
 });
 
-router.get('/me', auth, (req, res) => {
-  const u = db.get('SELECT id,username,email,avatar,role,rating,rating_count,total_sales,bio,discord,created_at FROM users WHERE id=?', [req.user.id]);
+router.get('/me', auth, async (req, res) => {
+  const u = await db.get('SELECT id,username,email,avatar,role,rating,rating_count,total_sales,bio,discord,created_at FROM users WHERE id=?', [req.user.id]);
   res.json(u);
 });
 
-router.put('/me', auth, (req, res) => {
+router.put('/me', auth, async (req, res) => {
   const { bio, discord } = req.body;
-  db.run('UPDATE users SET bio=?, discord=? WHERE id=?', [bio||null, discord||null, req.user.id]);
+  await db.run('UPDATE users SET bio=?, discord=? WHERE id=?', [bio||null, discord||null, req.user.id]);
   res.json({ message: 'Profil zaktualizowany' });
 });
 
-router.get('/user/:id', (req, res) => {
-  const u = db.get('SELECT id,username,avatar,role,rating,rating_count,total_sales,bio,discord,created_at FROM users WHERE id=?', [req.params.id]);
+router.get('/user/:id', async (req, res) => {
+  const u = await db.get('SELECT id,username,avatar,role,rating,rating_count,total_sales,bio,discord,created_at FROM users WHERE id=?', [req.params.id]);
   if (!u) return res.status(404).json({ error: 'Użytkownik nie istnieje' });
-  const offers = db.all("SELECT o.*,c.name as category_name,s.name as server_name FROM offers o LEFT JOIN categories c ON o.category_id=c.id LEFT JOIN servers s ON o.server_id=s.id WHERE o.seller_id=? AND o.status='active' ORDER BY o.id DESC LIMIT 6", [u.id]);
-  const reviews = db.all('SELECT r.*,u.username as reviewer_name FROM reviews r JOIN users u ON r.reviewer_id=u.id WHERE r.reviewed_id=? ORDER BY r.id DESC LIMIT 10', [u.id]);
+  const offers = await db.all("SELECT o.*,c.name as category_name,s.name as server_name FROM offers o LEFT JOIN categories c ON o.category_id=c.id LEFT JOIN servers s ON o.server_id=s.id WHERE o.seller_id=? AND o.status='active' ORDER BY o.id DESC LIMIT 6", [u.id]);
+  const reviews = await db.all('SELECT r.*,u.username as reviewer_name FROM reviews r JOIN users u ON r.reviewer_id=u.id WHERE r.reviewed_id=? ORDER BY r.id DESC LIMIT 10', [u.id]);
   res.json({ ...u, offers, reviews });
 });
 
 module.exports = router;
+
+// AVATAR UPLOAD
+const multer = require('multer');
+const cloudinary = require('cloudinary').v2;
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+const avatarUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2*1024*1024 }, fileFilter: (req,file,cb) => { if(!file.mimetype.startsWith('image/'))return cb(new Error('Tylko obrazy')); cb(null,true); } });
+
+router.post('/avatar', auth, avatarUpload.single('avatar'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Brak pliku' });
+  try {
+    const url = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: 'avatars', transformation: [{ width: 200, height: 200, crop: 'fill', gravity: 'face' }] },
+        (err, result) => err ? reject(err) : resolve(result.secure_url)
+      );
+      stream.end(req.file.buffer);
+    });
+    await db.run('UPDATE users SET avatar=? WHERE id=?', [url, req.user.id]);
+    res.json({ avatar: url, message: 'Awatar zaktualizowany!' });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});

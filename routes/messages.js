@@ -4,8 +4,8 @@ const auth = require('../middleware/auth');
 const { sendNewMessageEmail } = require('../emails');
 
 // GET inbox - list of conversations
-router.get('/inbox', auth, (req, res) => {
-  const convs = db.all(`
+router.get('/inbox', auth, async (req, res) => {
+  const convs = await db.all(`
     SELECT
       CASE WHEN m.from_id=? THEN m.to_id ELSE m.from_id END as other_id,
       u.username as other_username,
@@ -23,15 +23,15 @@ router.get('/inbox', auth, (req, res) => {
 });
 
 // GET unread count
-router.get('/unread', auth, (req, res) => {
-  const r = db.get('SELECT COUNT(*) as c FROM messages WHERE to_id=? AND is_read=0', [req.user.id]);
+router.get('/unread', auth, async (req, res) => {
+  const r = await db.get('SELECT COUNT(*) as c FROM messages WHERE to_id=? AND is_read=0', [req.user.id]);
   res.json({ count: r?.c || 0 });
 });
 
 // GET conversation with user
-router.get('/conversation/:userId', auth, (req, res) => {
+router.get('/conversation/:userId', auth, async (req, res) => {
   const otherId = Number(req.params.userId);
-  const msgs = db.all(`
+  const msgs = await db.all(`
     SELECT m.*, u.username as from_username
     FROM messages m JOIN users u ON m.from_id=u.id
     WHERE (m.from_id=? AND m.to_id=?) OR (m.from_id=? AND m.to_id=?)
@@ -39,9 +39,9 @@ router.get('/conversation/:userId', auth, (req, res) => {
   `, [req.user.id, otherId, otherId, req.user.id]);
 
   // Mark as read
-  db.run('UPDATE messages SET is_read=1 WHERE to_id=? AND from_id=?', [req.user.id, otherId]);
+  await db.run('UPDATE messages SET is_read=1 WHERE to_id=? AND from_id=?', [req.user.id, otherId]);
 
-  const other = db.get('SELECT id,username,avatar FROM users WHERE id=?', [otherId]);
+  const other = await db.get('SELECT id,username,avatar FROM users WHERE id=?', [otherId]);
   res.json({ messages: msgs, other });
 });
 
@@ -51,18 +51,18 @@ router.post('/send', auth, async (req, res) => {
   if (!to_id || !body?.trim()) return res.status(400).json({ error: 'Nieprawidłowe dane' });
   if (to_id === req.user.id) return res.status(400).json({ error: 'Nie możesz pisać do siebie' });
 
-  const recipient = db.get('SELECT * FROM users WHERE id=?', [to_id]);
+  const recipient = await db.get('SELECT * FROM users WHERE id=?', [to_id]);
   if (!recipient) return res.status(404).json({ error: 'Użytkownik nie istnieje' });
 
-  db.runInsert('INSERT INTO messages (from_id,to_id,body,offer_id) VALUES (?,?,?,?)',
+  await db.runInsert('INSERT INTO messages (from_id,to_id,body,offer_id) VALUES (?,?,?,?)',
     [req.user.id, to_id, body.trim(), offer_id || null]);
 
   // Check if first message in this conversation (don't spam emails)
-  const prevCount = db.get('SELECT COUNT(*) as c FROM messages WHERE from_id=? AND to_id=?',
+  const prevCount = await db.get('SELECT COUNT(*) as c FROM messages WHERE from_id=? AND to_id=?',
     [req.user.id, to_id]);
   if (prevCount?.c <= 1) {
-    const offer = offer_id ? db.get('SELECT title FROM offers WHERE id=?', [offer_id]) : null;
-    const sender = db.get('SELECT username FROM users WHERE id=?', [req.user.id]);
+    const offer = offer_id ? await db.get('SELECT title FROM offers WHERE id=?', [offer_id]) : null;
+    const sender = await db.get('SELECT username FROM users WHERE id=?', [req.user.id]);
     await sendNewMessageEmail(recipient.email, recipient.username, sender.username, offer?.title);
   }
 
